@@ -4,18 +4,18 @@ import argparse
 from datetime import datetime, timedelta, timezone
 from dateutil.parser import parse as parse_datetime
 from gitlab import Gitlab
-from gitlab.exceptions import *
+from gitlab.exceptions import GitlabGetError
+
 
 __version__ = '0.2.0'
+
 
 class GitlabArtifactCleanup(object):
     def __init__(self, dry_run=False, min_age=None):
         self.dry_run = dry_run
         self.min_age = timedelta() if min_age is None else min_age
-
         self.total_size = 0
         self.total_count = 0
-
 
     def cleanup_project(self, proj):
         print(proj.name_with_namespace)
@@ -31,7 +31,8 @@ class GitlabArtifactCleanup(object):
                 # Skip builds without artifacts
                 continue
 
-            print('  Build {} ({}): '.format(build.id, format_datasize(af['size'])), end='')
+            print('  Build {} ({}): '.format(
+                build.id, format_datasize(af['size'])), end='')
 
             # Skip builds run for tagged commits
             if build.tag:
@@ -46,8 +47,8 @@ class GitlabArtifactCleanup(object):
                 continue
 
             print('{action} {filename}'.format(
-                action = 'Would delete' if self.dry_run else 'Deleting',
-                filename = af['filename'],
+                action='Would delete' if self.dry_run else 'Deleting',
+                filename=af['filename'],
                 ))
 
             if not self.dry_run:
@@ -58,12 +59,11 @@ class GitlabArtifactCleanup(object):
             subtotal_count += 1
             self.total_count += 1
 
-
         if subtotal_count > 0:
             print('  {action} {size} in {count} artifacts'.format(
-                action = 'Would delete' if self.dry_run else 'Deleted',
-                size = format_datasize(subtotal_size),
-                count = subtotal_count))
+                action='Would delete' if self.dry_run else 'Deleted',
+                size=format_datasize(subtotal_size),
+                count=subtotal_count))
 
 
 def format_datasize(b):
@@ -73,6 +73,7 @@ def format_datasize(b):
         if (b < 1024) or (pref == prefixes[-1]):
             return '{:.02f} {}B'.format(b, pref) if pref else '{} B'.format(b)
         b /= 1024.0
+
 
 def parse_timedelta(s):
     parts = s.split()
@@ -101,24 +102,31 @@ def parse_timedelta(s):
 
     raise ValueError
 
+
 def parse_args():
     ap = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    ap.add_argument('-g', '--gitlab',
-            help='GitLab server defined in config file .python-gitlab')
-    ap.add_argument('--all-projects', action='store_true',
-            help='Cleanup artifacts for all accessible projects')
-    ap.add_argument('-m', '--min-age', type=parse_timedelta, default=timedelta(),
-            help='Minimum age for artifacts to be deleted;\n'
-                 'e.g. "172800"\n'
-                 '  == "172800 seconds"\n'
-                 '  == "2880 minutes"\n'
-                 '  == "48 hours"\n'
-                 '  == "2 days"')
-    ap.add_argument('-n', '--dry-run', action='store_true',
-            help="Don't actually delete anything")
-    ap.add_argument('-p', '--project', dest='projects', action='append',
-            help='Project for which to cleanup artifacts -- can be given multiple times')
-    ap.add_argument('-V', '--version', action='version', version='%(prog)s ' + __version__)
+    ap.add_argument(
+        '-g', '--gitlab',
+        help='GitLab server defined in config file .python-gitlab')
+    ap.add_argument(
+        '--all-projects', action='store_true',
+        help='Cleanup artifacts for all accessible projects')
+    ap.add_argument(
+        '-m', '--min-age', type=parse_timedelta, default=timedelta(),
+        help='Minimum age for artifacts to be deleted;\n'
+             'e.g. "172800"\n'
+             '  == "172800 seconds"\n'
+             '  == "2880 minutes"\n'
+             '  == "48 hours"\n'
+             '  == "2 days"')
+    ap.add_argument(
+        '-n', '--dry-run', action='store_true',
+        help="Don't actually delete anything")
+    ap.add_argument(
+        '-p', '--project', dest='projects', action='append',
+        help='Project for which to cleanup artifacts -- can be given multiple times')  # NOQA
+    ap.add_argument(
+        '-V', '--version', action='version', version='%(prog)s ' + __version__)
 
     args = ap.parse_args()
 
@@ -129,20 +137,20 @@ def parse_args():
 
     return args
 
+
 def main():
     args = parse_args()
 
-    print('Would delete' if args.dry_run else 'Deleting', 'non-tagged artifacts', end='')
+    print('Would delete' if args.dry_run else 'Deleting', 'non-tagged artifacts', end='')  # NOQA
     if args.min_age:
         print(' older than', args.min_age, end='')
     print('\n')
 
-
     gl = Gitlab.from_config(gitlab_id=args.gitlab)
 
     cleanup = GitlabArtifactCleanup(
-            dry_run = args.dry_run,
-            min_age = args.min_age,
+            dry_run=args.dry_run,
+            min_age=args.min_age,
             )
 
     if args.all_projects:
@@ -158,9 +166,9 @@ def main():
             cleanup.cleanup_project(proj)
 
     print('\n{action} {size} in {count} artifacts total'.format(
-        action = 'Would delete' if args.dry_run else 'Deleted',
-        size = format_datasize(cleanup.total_size),
-        count = cleanup.total_count))
+        action='Would delete' if args.dry_run else 'Deleted',
+        size=format_datasize(cleanup.total_size),
+        count=cleanup.total_count))
 
 if __name__ == '__main__':
     main()
